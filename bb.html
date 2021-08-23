@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Canvas的奇妙冒险</title>
-    <!-- Canvas, おれはJQueryをやめるぞ！ -->
+    <title>Canvas</title>
+
     <style>
         body {
             background-color: #000;
@@ -24,6 +24,10 @@
             margin: auto;
         }
     </style>
+    <script>
+        var lyricFont = "Simsum"
+        var phoneFont = "Simsum";
+    </script>
 </head>
 
 <body>
@@ -32,6 +36,15 @@
     <canvas id="rili" class="hidden" width="600" height="600"></canvas>
     <canvas id="display"></canvas>
     <script>
+        function Deferred() {
+            let p = this.promise = new Promise((resolve, reject) => {
+                this.resolve = resolve;
+                this.reject = reject;
+            });
+            this.then = this.promise.then.bind(p);
+            this.catch = this.promise.catch.bind(p);
+        }
+
         var cvs = document.getElementById("cvs");
         var ctx = cvs.getContext("2d");
 
@@ -72,7 +85,7 @@
         }
 
 
-        // 果然还是复制别人的轮子这种东西最刺激啦 出处：https://blog.csdn.net/u012601195/article/details/47860617
+        // Calander source： https://blog.csdn.net/u012601195/article/details/47860617
         function drawRili() {
             riliCtx.clearRect(0, 0, 600, 600);
             var date = new Date();
@@ -87,7 +100,7 @@
             var array_threeone = [1, 3, 5, 7, 8, 10, 12];
             var array_week = ["SUN", "MON", "TUES", "WED", "THUR", "FRI", "SAT"];
 
-            var firstDraw; //1号绘制位置
+            var firstDraw; 
             var wIdx = today % 7;
 
             if (week >= wIdx) {
@@ -111,7 +124,7 @@
             }
 
             var row = 6;
-            if (7 - firstDraw + 7 * 4 < countDay) { //确定表格行数，防止日期绘制不全
+            if (7 - firstDraw + 7 * 4 < countDay) { // Determine the number of table rows to prevent date drawing
                 row = 7;
             }
 
@@ -165,18 +178,32 @@
                     drawTodaybg(j, i);
                 }
             }
+            
+            var todaySuffix = "th";
+            switch (today%10){
+                case 1:
+                    todaySuffix = "st";
+                    break;
+                case 2:
+                    todaySuffix = "nd";
+                    break;
+                case 3:
+                    todaySuffix = "rd";
+                    break;
+            }
 
             riliCtx.fillStyle = "rgb(69,68,84)";
             riliCtx.font = "900 26pt SimHei";
             riliCtx.textAlign = "center";
-            var monthCN = ["一","二","三","四","五","六","七","八","九","十","十一","十二"];
+            var monthCN = ["January","Febuary","March","April","May","June",
+                           "July","August","September","October","November","December"];
             riliCtx.scale(1.1,1);
-            riliCtx.fillText(monthCN[mouth] + "月", 260, 32);
+            riliCtx.fillText(monthCN[mouth], 260, 32);
             riliCtx.resetTransform();
             
             riliCtx.font = "20pt SimHei";
             riliCtx.textAlign = "end";
-            riliCtx.fillText(today + "日",520,38);
+            riliCtx.fillText(today+todaySuffix, 520, 38);
 
             for (var i = 0; i < row; i++) {
                 for (var j = 0; j < 7; j++) {
@@ -186,18 +213,18 @@
 
             dayIndex = 1;
 
-            for (var i = 0; i < row; i++) { //开始绘制日期数
+            for (var i = 0; i < row; i++) { // Start drawing the number of dates
                 for (var j = 0; j < 7; j++) {
-                    if (i == 0) { //表格第一行绘制星期
+                    if (i == 0) { // The first line of the form draws the week
                         drawDate(array_week[j], i, j);
                         continue;
                     }
 
-                    if (i == 1 && j < firstDraw) { //确定1号绘制位置
+                    if (i == 1 && j < firstDraw) { // Determine the number 1 drawing position
                         continue;
                     }
 
-                    if (dayIndex > countDay) { //只绘制月份的天数
+                    if (dayIndex > countDay) { // Only draw the number of days in the month
                         break;
                     }
 
@@ -209,7 +236,7 @@
         var riliInterval = setInterval(drawRili, 3600000);
         drawRili();
 
-        // Canvas奇妙的剪切蒙版实现
+        // Canvas clipping mask implementation
         var screenMask = new Image();
         screenMask.src = "Screenmask.png";
 
@@ -226,7 +253,7 @@
             }
         }, 14);
 
-        // 奇妙的屏幕大小自适应
+        // Screen size adaptation
         window.onresize = function () {
             if (window.innerWidth / window.innerHeight > 1.8333333333333) {
                 display.width = window.innerWidth;
@@ -241,7 +268,7 @@
 
         window.onresize();
 
-        // 加载图片
+        // Loading image
         var bg = new Image();
         bg.src = "bg.png";
 
@@ -263,13 +290,28 @@
         var phoneLight = new Image();
         phoneLight.src = "phoneLight.png";
 
-        var phoneText = JSON.parse("[{\"time\":0,\"text\":\"凌晨啦!\"},{\"time\":6,\"text\":\"早上好!\"},{\"time\":8,\"text\":\"上午好!\"},{\"time\":11,\"text\":\"你吃了吗\"},{\"time\":13,\"text\":\"下午好鸭!\"},{\"time\":16,\"text\":\"傍晚咯!\"},{\"time\":19,\"text\":\"晚安!\"}]");
-
         var noRili = false;
         var updateSongInfoHandler = -1;
-        // 设置左上角的壁纸
+        var phoneText;
+        var propPromise = new Deferred()
+        
+        var clock12 = false
+        
+        // Set the wallpaper in the upper left corner
         window.wallpaperPropertyListener = {
             applyUserProperties: function (properties) {
+                if (properties.clock12){
+                    clock12 = properties.clock12.value;
+                }
+            
+                if (properties.lyricFont){
+                    lyricFont = properties.lyricFont.value
+                }
+
+                if (properties.phoneFont){
+                    phoneFont = properties.phoneFont.value
+                }
+
                 if (properties.screenFile) {
                     if (properties.screenFile.value) {
                         screen.src = 'file:///' + properties.screenFile.value;
@@ -288,8 +330,51 @@
 
                 if (properties.phoneText) {
                     if (properties.phoneText.value) {
-                        phoneText = JSON.parse(properties.phoneText.value);
+                        phoneText = "[";
+                        let validList = true;
+                        let jstrPart = "";
+                        let terror = ""; 
+                        let list = properties.phoneText.value;
+                        // let list = "0:Hemlo World";
+                        
+                        if(list.includes(",")){
+                            list = properties.phoneText.value.split(",");
+                        }else{
+                            list = [list];
+                        }
+                        for (var i=0; i<list.length; i++) {
+                            // Check regex
+                            if(!(/[0-9]([0-9])?:.+/g.test(list[i]))){
+                                validList = false;
+                                terror = "REGEX:" + list[i];
+                                break;
+                            }
+                            // Check hours
+                            jstrPart = list[i].split(":");
+                            if(Number(jstrPart[0]) < 0 || Number(jstrPart[0]) > 24){
+                                if(Number(jstrPart[0] == 24)){jstrPart[0]=0;}
+                                validList = false;
+                                terror = "NAN:" + list[i];
+                                break;
+                            }
+                            // Add to phoneText
+                            phoneText += "{\"time\":" + jstrPart[0] + ",\"text\":\"" + jstrPart[1] + "\"},";
+                        }
+                        if(!validList){
+                            phoneText = JSON.parse("[{\"time\":0,\"text\":\"" + 
+                                                    terror + "\"}]");
+                        }else{
+                            phoneText = phoneText.slice(0, -1);
+                            phoneText += "]";
+                            phoneText = JSON.parse(phoneText);
+                        }
                     }
+                     
+                    else {
+                        //Original before translation: phoneText = JSON.parse("[{\"time\":0,\"text\":\"凌晨啦!\"},{\"time\":6,\"text\":\"早上好!\"},{\"time\":8,\"text\":\"上午好!\"},{\"time\":11,\"text\":\"你吃了吗\"},{\"time\":13,\"text\":\"下午好鸭!\"},{\"time\":16,\"text\":\"傍晚咯!\"},{\"time\":19,\"text\":\"晚安!\"}]");
+                        phoneText = JSON.parse("[{\"time\":0,\"text\":\"\"}]");
+                    }
+                    phoneText = phoneText.sort((a, b) => a.time < b.time)
                 }
 
                 if (properties.disableRili) {
@@ -312,6 +397,8 @@
                         updateSongInfoHandler = -1;
                     }
                 }
+
+                propPromise.resolve(properties)
             }
         }
 
@@ -319,12 +406,11 @@
         var animData = new Array(128);
         var SoundPlaying = false;
 
-        // 奇妙的初始化
         for (var i = 0; i < 128; i++) {
             data[i] = animData[i] = 0;
         }
 
-        // 奇妙的Normalize
+        // Normalize
         var peakValue = 1;
         if (window.wallpaperRegisterAudioListener) {
             window.wallpaperRegisterAudioListener(function (audioData) {
@@ -353,7 +439,6 @@
             }, 10);
         }
 
-        // ....
         function min(a, b) {
             return a > b ? b : a;
         }
@@ -362,7 +447,7 @@
             return a > b ? a : b;
         }
 
-        // 奇妙的颜色变化
+        // Color change
         var targetColor = { r: 80, g: 120, b: 169 };
         var currentColor = { r: 80, g: 120, b: 169 };
         var lightColor = { r: 0, g: 34, b: 77, a: 0 };
@@ -379,7 +464,7 @@
         var debug = false;
 
 
-        // Canvas的奇妙冒险!
+        // Canvas
         function render() {
             for (var i = 0; i < 128; i++) {
                 animData[i] += (data[i] - animData[i]) * 0.3;
@@ -404,15 +489,38 @@
 
             ctx.fillStyle = "#97adbb";
             ctx.font = "32pt Impact";
-            
 
             ctx.transform(1, 2.05 * (Math.PI / 180), 0, 1, 0, 0);
 
             var time = new Date();
-            ctx.fillText((time.getHours() < 10 ? "0" : "") + time.getHours().toString() + ":" + (time.getMinutes() < 10 ? "0" : "") + time.getMinutes() + ":" + (time.getSeconds() < 10 ? "0" : "") + time.getSeconds().toString(), 725, 318);
+            var hours = time.getHours();
+            var ampm = "";
+            var clockShiftY = 0;
+            var clockStr = "";
+            
+            if(clock12){
+              if(hours > 11 && hours < 24){
+                  ampm = "PM";
+              }else{
+                  ampm = "AM";
+              }
+              
+              hours = hours%12;
+              if(hours == 0){
+                  hours = 12;
+              } 
+              clockShiftY = -20
+            }
+            
+            ctx.textAlign = "center";
+            ctx.fillText((hours < 10 ? "0" : "") + hours.toString() + ":" + 
+                         (time.getMinutes() < 10 ? "0" : "") + time.getMinutes() + ":" + 
+                         (time.getSeconds() < 10 ? "0" : "") + time.getSeconds().toString(), 
+                         795, 318+clockShiftY);
+            ctx.fillText(ampm, 795, 340);
             ctx.resetTransform();
 
-            //日历本
+            // Calendar
             ctx.transform(0.9645, 0, 0 * (Math.PI / 180), 0.96, 967, 100);
             ctx.rotate(6 * (Math.PI / 180));
 
@@ -455,7 +563,7 @@
             ctx.drawImage(caidai, 949, 25);
             ctx.drawImage(two, 1319, 345);
 
-            // 夜间光照
+            // Night illumination
             if (night && lightColor.a < 0.7) {
                 lightColor.a += 0.005;
                 lightColor.a = min(lightColor.a, 0.7);
@@ -475,7 +583,7 @@
                 ctx.globalAlpha = 1;
             }
 
-            //屏幕
+            // Screen
             ctx.drawImage(screenImage, 0, 0);
             if (lightColor.a > 0) {
                 ctx.globalAlpha = lightColor.a / 0.7;
@@ -484,13 +592,6 @@
             }
 
             night = true;
-            var greeting = "凌晨啦!";
-
-            phoneText.forEach((v) => {
-                if (time.getHours() >= v.time) {
-                    greeting = v.text;
-                }
-            });
 
             if (time.getHours() >= 6 && time.getHours() <= 18) {
                 night = false;
@@ -498,43 +599,79 @@
 
             night = debug ? !night : night;
 
-            //手机
-            ctx.fillStyle = "#000";
-            ctx.font = "31.02pt SimHei";
+            // Phone
+            propPromise.then(_ => {
+                //PHONE SCREEN HERE
+                // const greeting = phoneText.find(v => time.getHours() >= v.time).text
+                var date = new Date();
+                var subjects = [ 
+                    ["No Classes For Today"], 
+                    ["EEE180     09:00AM - 10:30AM","EEE160     01:30PM - 03:00PM", "COE173.1   03:00PM - 06:00PM"], //Monday
+                    ["COE140     07:30AM - 09:00AM", "COE180.1   09:00AM - 12:00PM", "COE128     03:00PM - 04:30PM","ENS191     04:30PM - 06:00PM", "COE172     06:00PM - 09:00PM"], //Tuesday
+                    ["EEE180.1   01:30PM - 04:30PM"], //Wednesday
+                    ["EEE180     09:00AM - 10:30AM","EEE160     01:30PM - 03:00PM"], //Thursday
+                    ["COE140     07:30AM - 09:00AM", "COE180.1   09:00AM - 12:00PM", "COE128     03:00PM - 04:30PM","ENS191     04:30PM - 06:00PM"], //Friday
+                    ["EEE160.1   01:30PM - 04:30PM"] //Saturday
+                ]
+                var profs = []
+                const greeting = "Hemlo\naSDasWorld";
+                ctx.fillStyle = "#000";
+                // ctx.font = `31.02pt ${phoneFont}`;
+                ctx.font = '24pt Helvetica'
+                ctx.transform(1.0911, -35 * (Math.PI / 180), 0, 0.5868, 1132.94, 564.07);
+                ctx.rotate(57 * (Math.PI / 180));
+                ctx.textAlign = "center"
+                ctx.fillStyle = "#fff";
+                ctx.fillText("Subjects", 135, 45)
+                ctx.textAlign = "start"
 
-            ctx.transform(1.0911, -35 * (Math.PI / 180), 0, 0.5868, 1132.94, 564.07);
-            ctx.rotate(56.5 * (Math.PI / 180));
-            ctx.textAlign = "center"
-            ctx.fillStyle = "#fff";
-            ctx.fillText(greeting, 135, 100);
-            ctx.textAlign = "start"
-            ctx.resetTransform();
+                //get subj for the day
+                
+                var line = 0;
+                var arr = date.getDay()
+                for(var i = 0; i<subjects[arr].length; i++){
+                    ctx.font = '14pt Helvetica'
+                    ctx.textAlign = "center"
+                    ctx.fillStyle = "#fff";
+                    ctx.fillText(subjects[arr][i], 135, 70 + line)
+                    line+=20
+                }
+
+                ctx.resetTransform();
+            })
+            
 
             if (updateSongInfoHandler != -1) {
                 ctx.transform(0.9645, 0, 9 * (Math.PI / 180), 1, 725, 475);
                 ctx.rotate(7 * (Math.PI / 180));
                 if (songInfo.Title) {
-                    ctx.font = "35px SimHei";
+                    const lyricOffsetX = 10
+                    const globalOffsetX = -120
+                    const globalOffsetY = -21
+                    const chineseLyric = songInfo.ChineseLryic.trimStart()
+                    const lyric = songInfo.Lryic.trimStart()
+
+                    ctx.font = `33px ${lyricFont}`;
                     ctx.textAlign = "left";
                     ctx.fillStyle = "rgba(0,0,0,0.7)";
-                    ctx.fillText(songInfo.Title, 2, 2);
+                    ctx.fillText(songInfo.Title, 2 + globalOffsetX, 2 - globalOffsetY);
                     ctx.fillStyle = "#fff";
-                    ctx.fillText(songInfo.Title, 0, 0);
+                    ctx.fillText(songInfo.Title, 0 + globalOffsetX, 0 - globalOffsetY);
 
-                    ctx.font = "28px SimHei";
+                    ctx.font = `28px ${lyricFont}`;
 
                     ctx.fillStyle = "rgba(0,0,0,0.7)";
-                    ctx.fillText(songInfo.Lryic, 2, 52);
-                    ctx.fillRect(0, 15, 600, 2);
+                    ctx.fillText(lyric, 2 + lyricOffsetX + globalOffsetX, 52 - globalOffsetY);
+                    ctx.fillRect(0 + globalOffsetX, 15 - globalOffsetY, 600, 2);
                     ctx.fillStyle = "#fff";
-                    ctx.fillText(songInfo.Lryic, 0, 50);
-                    ctx.fillRect(0, 10, songInfo.Now / songInfo.AllTime * 600, 5)
+                    ctx.fillText(lyric, lyricOffsetX + globalOffsetX, 50 - globalOffsetY);
+                    ctx.fillRect(0 + globalOffsetX, 10 - globalOffsetY, songInfo.Now / songInfo.AllTime * 600, 5)
 
-                    ctx.font = "22px SimHei";
+                    ctx.font = `22px ${lyricFont}`;
                     ctx.fillStyle = "rgba(0,0,0,0.7)";
-                    ctx.fillText(songInfo.ChineseLryic, 2, 79);
+                    ctx.fillText(chineseLyric, 2 + lyricOffsetX + globalOffsetX, 79 - globalOffsetY);
                     ctx.fillStyle = "#fff";
-                    ctx.fillText(songInfo.ChineseLryic, 0, 77);
+                    ctx.fillText(chineseLyric, lyricOffsetX + globalOffsetX, 77 - globalOffsetY);
 
                 }
 
@@ -547,11 +684,14 @@
                     ctx.fillStyle = "#000";
                     ctx.fillRect(0,200,1980,500);
                     ctx.fillStyle = "#f00";
-                    ctx.fillText("错误: 歌曲信息后台未开启",1980 / 2,1080 / 2 - 72);
+                    ctx.fillText("Error: Song info not open in background",1980 / 2,1080 / 2 - 72);
                 }
             }
-            displayCtx.drawImage(cvs, 0, 0, display.width, display.height);
-            window.requestAnimationFrame(render);
+
+            propPromise.then(_ => {
+                displayCtx.drawImage(cvs, 0, 0, display.width, display.height);
+                window.requestAnimationFrame(render);
+            })
         }
 
         window.requestAnimationFrame(render);

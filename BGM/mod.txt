@@ -1,0 +1,205 @@
+#region 插入新类
+using System;
+using System.IO;
+using System.Net;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading;
+using BGM;
+using CalabashFont;
+using CalabashTools;
+using Microsoft.Win32;
+
+internal class BGMJsonRPC
+{
+	[DllImport("user32")]
+	private static extern int GetWindowThreadProcessId(IntPtr intptr_0, out int int_3);
+
+	private string FormatTime(double double_, double double_2)
+	{
+		if (double_ > 0.0 && double_2 >= 0.0)
+		{
+			double_ /= 1000.0;
+			double_2 /= 1000.0;
+			int num = (int)double_ / 60;
+			int num2 = (int)double_ % 60;
+			int num3 = (int)double_2 / 60;
+			int num4 = (int)double_2 % 60;
+			return string.Format("({0}:{1}/{2}:{3})", new object[]
+			{
+				num3,
+				num4,
+				num,
+				num2
+			});
+		}
+		return null;
+	}
+
+	private void updateShit()
+	{
+		try
+		{
+			string text = this.MainWindow.player.getMusicType();
+			string title = this.MainWindow.player.findTitle();
+			if (string.IsNullOrEmpty(text))
+			{
+				this.Title = "";
+			}
+			else
+			{
+				this.AppName = text;
+				this.Title = title;
+				if (this.MainWindow.bgm != null)
+				{
+					this.Lryic = this.MainWindow.bgm.GetLyricNow(ref this.ChineseLryic, ref this.AllTime, ref this.Now);
+					if (this.Now <= 0.0)
+					{
+						this.Now = this.NowBak;
+					}
+					if (this.AllTime <= 0.0)
+					{
+						this.AllTime = this.AllTimeBak;
+					}
+					this.NowBak = this.Now;
+					this.AllTimeBak = this.AllTime;
+				}
+			}
+		}
+		catch
+		{
+			this.Title = "";
+			this.AppName = "";
+			this.Lryic = "";
+			this.ChineseLryic = "";
+			this.AllTime = this.AllTimeBak;
+			this.Now = this.NowBak;
+		}
+	}
+
+	private void TaskProc(object o)
+	{
+		HttpListenerContext httpListenerContext = (HttpListenerContext)o;
+		httpListenerContext.Response.StatusCode = 200;
+		httpListenerContext.Response.Headers.Add("Access-Control-Allow-Origin", "*");
+		httpListenerContext.Response.Headers.Add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+		Path.GetFileName(httpListenerContext.Request.RawUrl);
+		new StreamReader(httpListenerContext.Request.InputStream, Encoding.UTF8).ReadToEnd();
+		using (StreamWriter streamWriter = new StreamWriter(httpListenerContext.Response.OutputStream, Encoding.UTF8))
+		{
+			streamWriter.Write(string.Format("{{ \"AppName\":\"{0}\", \"Title\":\"{1}\", \"AllTime\":\"{2}\", \"Now\":\"{3}\", \"ChineseLryic\":\"{4}\", \"Lryic\":\"{5}\", \"FormattedTime\":\"{6}\"}}", new object[]
+			{
+				this.AppName,
+				this.Title,
+				this.AllTime,
+				this.Now,
+				this.ChineseLryic,
+				this.Lryic,
+				this.FormatTime(this.AllTime, this.Now)
+			}));
+			streamWriter.Close();
+			httpListenerContext.Response.Close();
+		}
+	}
+
+	public void main(MainWindow mainwindow)
+	{
+		this.MainWindow = mainwindow;
+		new Thread(() =>
+		{
+			HttpListener httpListener = new HttpListener();
+			try
+			{
+				httpListener.AuthenticationSchemes = AuthenticationSchemes.Anonymous;
+				httpListener.Prefixes.Add("http://127.0.0.1:62333/BGMName/");
+				httpListener.Start();
+			}
+			catch (Exception)
+			{
+				return;
+			}
+			int num;
+			int num2;
+			ThreadPool.GetMaxThreads(out num, out num2);
+			int num3;
+			ThreadPool.GetMinThreads(out num3, out num2);
+			new Thread(() =>
+			{
+				for (;;)
+				{
+					this.updateShit();
+					Thread.Sleep(500);
+				}
+			}).Start();
+			for (;;)
+			{
+				HttpListenerContext context = httpListener.GetContext();
+				ThreadPool.QueueUserWorkItem(new WaitCallback(this.TaskProc), context);
+			}
+		}).Start();
+	}
+
+	private static object o = new object();
+
+	private string AppName;
+
+	private string Title = "";
+
+	private string Lryic = "";
+
+	private double AllTime;
+
+	private double Now;
+
+	private string ChineseLryic;
+
+	private MainWindow MainWindow;
+
+	public double NowBak;
+
+	public double AllTimeBak;
+}
+#endregion
+
+
+using System;
+using System.IO;
+using System.Net;
+using System.Text;
+using CalabashTools;
+using Newtonsoft.Json.Linq;
+
+namespace BGMProtocol
+{
+	// Token: 0x02000006 RID: 6
+	public abstract partial class BGMProtocol
+	{
+		// Token: 0x0600009E RID: 158
+		public static string chsToCht(string string_3)
+		{
+			WebRequest webRequest = WebRequest.Create("https://api.zhconvert.org/convert");
+			webRequest.Method = "POST";
+			webRequest.ContentType = "application/x-www-form-urlencoded; charset=utf-8";
+			string s = "converter=Taiwan&text=" + string_3;
+			byte[] bytes = Encoding.UTF8.GetBytes(s);
+			webRequest.ContentLength = (long)bytes.Length;
+			using (Stream requestStream = webRequest.GetRequestStream())
+			{
+				requestStream.Write(bytes, 0, bytes.Length);
+			}
+			string result;
+			using (HttpWebResponse httpWebResponse = (HttpWebResponse)webRequest.GetResponse())
+			{
+				using (StreamReader streamReader = new StreamReader(httpWebResponse.GetResponseStream()))
+				{
+					result = JObject.Parse(streamReader.ReadToEnd())[CalabashTools.Encrypt.TEXT("data")][CalabashTools.Encrypt.TEXT("text")].ToString();
+				}
+			}
+			return result;
+		}
+	}
+}
+
+string input2 = BGMProtocol.chsToCht(jobject[CalabashTools.Encrypt.TEXT("tlyric")][CalabashTools.Encrypt.TEXT("lyric")].ToString());
+
+
